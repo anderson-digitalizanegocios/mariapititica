@@ -2,6 +2,8 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
+
+// Usa a porta fornecida pela Render ou 8766 para testes locais
 const PORT = process.env.PORT || 8766;
 const ENDPOINT_API = 'https://facilzap.app.br/mariapititicakids/integracoes/produtos_json';
 
@@ -55,6 +57,8 @@ function proxyAPI(res) {
 
 const servidor = http.createServer((req, res) => {
     let url = decodeURIComponent(req.url.split('?')[0]);
+    
+    // Aponta para o index.html na raiz
     if (url === '/') url = '/index.html';
 
     if (url === '/api/produtos') {
@@ -69,13 +73,5 @@ servidor.listen(PORT, () => {
     console.log('=========================================');
     console.log('  Servidor Proxy do Estoque - ONLINE 🌐');
     console.log('=========================================');
-    console.log('');
-    console.log('Acesse a pagina no navegador:');
-    console.log(`  http://localhost:${PORT}/`);
-    console.log('');
-    console.log('Endpoint proxy (JSON puro):');
-    console.log(`  http://localhost:${PORT}/api/produtos`);
-    console.log('');
-    console.log('Pressione Ctrl+C para encerrar.');
-    console.log('=========================================');
+    console.log(`Servidor rodando na porta ${PORT}`);
 });
