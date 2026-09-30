@@ -1,0 +1,10 @@
+{
+  "name": "visualizador-estoque",
+  "version": "1.0.0",
+  "description": "Proxy e visualizador",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {}
+}

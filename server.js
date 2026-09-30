@@ -2,7 +2,7 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const PORT = 8766;
+const PORT = process.env.PORT || 8766;
 const ENDPOINT_API = 'https://facilzap.app.br/mariapititicakids/integracoes/produtos_json';
 
 const MIMES = {
