@@ -1,380 +1,396 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<title>Visualizador de Estoque - API</title>
-<style>
-    * { box-sizing: border-box; }
-    body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 20px;
-        background: #f5f5f5;
-    }
-    .container {
-        max-width: 1500px;
-        margin: 0 auto;
-    }
-    h1 {
-        color: #333;
-        text-align: center;
-        margin-bottom: 18px;
-    }
-    .loja-info {
-        background: linear-gradient(135deg, #009879, #00b894);
-        color: white;
-        padding: 14px 24px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 10px;
-        box-shadow: 0 2px 10px rgba(0,152,121,0.2);
-    }
-    .loja-info h2 { margin: 0; font-size: 17px; }
-    .loja-info a { color: #fff; font-weight: bold; }
-    .carregamento {
-        background: #fff3cd;
-        color: #856404;
-        padding: 14px 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        border-left: 4px solid #ffc107;
-    }
-    .erro {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 16px 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        border-left: 4px solid #dc3545;
-        white-space: pre-wrap;
-    }
-    .btn-recarregar {
-        padding: 9px 20px;
-        background: #fff;
-        color: #009879;
-        border: 2px solid #fff;
-        border-radius: 4px;
-        cursor: pointer;
-        font-weight: bold;
-        font-size: 14px;
-        transition: all 0.2s;
-    }
-    .btn-recarregar:hover {
-        background: rgba(255,255,255,0.15);
-        color: #fff;
-    }
-    .filters {
-        background: white;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        margin-bottom: 20px;
-        display: grid;
-        grid-template-columns: 1fr 1fr 1fr auto;
-        gap: 15px;
-        align-items: end;
-    }
-    .filter-group {
-        display: flex;
-        flex-direction: column;
-    }
-    .filter-group label {
-        font-weight: bold;
-        margin-bottom: 6px;
-        font-size: 14px;
-        color: #444;
-    }
-    .filter-group input[type="text"] {
-        padding: 9px 12px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        font-size: 14px;
-    }
-    .filter-group input[type="text"]:focus {
-        outline: none;
-        border-color: #009879;
-    }
-    .filter-check {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 9px 12px;
-        background: #fafafa;
-        border-radius: 4px;
-        cursor: pointer;
-        border: 1px solid #eee;
-    }
-    .filter-check input[type="checkbox"] {
-        width: 18px;
-        height: 18px;
-        cursor: pointer;
-    }
-    .filter-check label {
-        font-weight: bold;
-        font-size: 14px;
-        color: #444;
-        cursor: pointer;
-        margin: 0;
-    }
-    .stats {
-        background: #009879;
-        color: white;
-        padding: 12px 20px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-        font-size: 14px;
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-    .stats strong { font-size: 16px; }
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        background: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-    }
-    thead {
-        background: #009879;
-        color: white;
-    }
-    th {
-        padding: 14px;
-        text-align: left;
-        font-size: 14px;
-    }
-    th.text-center, td.text-center { text-align: center; }
-    td {
-        padding: 12px 14px;
-        border-bottom: 1px solid #eee;
-        font-size: 14px;
-        vertical-align: middle;
-    }
-    tbody tr:nth-child(even) { background: #f9f9f9; }
-    tbody tr:hover { background: #e8f5e9; }
-    .prod-img {
-        width: 50px;
-        height: 50px;
-        object-fit: cover;
-        border-radius: 4px;
-        margin-right: 10px;
-        vertical-align: middle;
-    }
-    .prod-name {
-        display: inline-block;
-        vertical-align: middle;
-        max-width: 320px;
-    }
-    .prod-name a {
-        color: #222;
-        text-decoration: none;
-        display: block;
-        font-weight: bold;
-        font-size: 14px;
-    }
-    .prod-name a:hover { color: #009879; text-decoration: underline; }
-    .prod-name small { color: #666; display: block; margin-top: 2px; }
-    .preco {
-        font-weight: bold;
-        color: #1b5e20;
-        font-size: 15px;
-    }
-    .variacao-nome { display: block; color: #333; }
-    .estoque-zero { color: #c62828; font-weight: bold; }
-    .estoque-baixo { color: #ef6c00; font-weight: bold; }
-    .estoque-positivo { color: #2e7d32; font-weight: bold; }
-    .badge-sem-controle {
-        background: #e0e0e0;
-        color: #555;
-        padding: 3px 8px;
-        border-radius: 10px;
-        font-size: 11px;
-        font-weight: bold;
-    }
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        color: #888;
-        font-size: 16px;
-    }
-    .btn-limpar {
-        padding: 9px 18px;
-        background: #e0e0e0;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 14px;
-        font-weight: bold;
-        color: #444;
-    }
-    .btn-limpar:hover { background: #bdbdbd; }
-    .spinner {
-        display: inline-block;
-        width: 16px;
-        height: 16px;
-        border: 2px solid rgba(255,255,255,0.3);
-        border-radius: 50%;
-        border-top-color: #fff;
-        animation: spin 0.8s linear infinite;
-        vertical-align: middle;
-        margin-right: 8px;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-</style>
+    <meta charset="UTF-8">
+    <title>Visualizador de Estoque - API</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1500px;
+            margin: 0 auto;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 18px;
+        }
+        .loja-info {
+            background: linear-gradient(135deg, #009879, #00b894);
+            color: white;
+            padding: 14px 24px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,152,121,0.2);
+        }
+        .loja-info h2 { margin: 0; font-size: 17px; }
+        .loja-info a { color: #fff; font-weight: bold; }
+        .carregamento {
+            background: #fff3cd;
+            color: #856404;
+            padding: 14px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ffc107;
+        }
+        .erro {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border-left: 4px solid #dc3545;
+            white-space: pre-wrap;
+        }
+        .btn-recarregar {
+            padding: 9px 20px;
+            background: #fff;
+            color: #009879;
+            border: 2px solid #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .btn-recarregar:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+        .filters {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 15px;
+            align-items: end;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+        }
+        .filter-group label {
+            font-weight: bold;
+            margin-bottom: 6px;
+            font-size: 14px;
+            color: #444;
+        }
+        .filter-group input[type="text"] {
+            padding: 9px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .filter-group input[type="text"]:focus {
+            outline: none;
+            border-color: #009879;
+        }
+        .filter-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 12px;
+            background: #fafafa;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid #eee;
+        }
+        .filter-check input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+        .filter-check label {
+            font-weight: bold;
+            font-size: 14px;
+            color: #444;
+            cursor: pointer;
+            margin: 0;
+        }
+        .stats {
+            background: #009879;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .stats strong { font-size: 16px; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        thead {
+            background: #009879;
+            color: white;
+        }
+        th {
+            padding: 14px;
+            text-align: left;
+            font-size: 14px;
+        }
+        th.text-center, td.text-center { text-align: center; }
+        td {
+            padding: 12px 14px;
+            border-bottom: 1px solid #eee;
+            font-size: 14px;
+            vertical-align: middle;
+        }
+        tbody tr:nth-child(even) { background: #f9f9f9; }
+        tbody tr:hover { background: #e8f5e9; }
+        .prod-img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            border-radius: 4px;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+        .prod-name {
+            display: inline-block;
+            vertical-align: middle;
+            max-width: 320px;
+        }
+        .prod-name a {
+            color: #222;
+            text-decoration: none;
+            display: block;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .prod-name a:hover { color: #009879; text-decoration: underline; }
+        .prod-name small { color: #666; display: block; margin-top: 2px; }
+        .preco {
+            font-weight: bold;
+            color: #1b5e20;
+            font-size: 15px;
+        }
+        .variacao-nome { display: block; color: #333; }
+        .estoque-zero { color: #c62828; font-weight: bold; }
+        .estoque-baixo { color: #ef6c00; font-weight: bold; }
+        .estoque-positivo { color: #2e7d32; font-weight: bold; }
+        .badge-sem-controle {
+            background: #e0e0e0;
+            color: #555;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #888;
+            font-size: 16px;
+        }
+        .btn-limpar {
+            padding: 9px 18px;
+            background: #e0e0e0;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            color: #444;
+        }
+        .btn-limpar:hover { background: #bdbdbd; }
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
 </head>
 <body>
-<div class="container">
-    <h1>📦 Visualizador de Estoque - API Maria Pititica</h1>
+    <div class="container">
+        <h1>📦 Visualizador de Estoque - API Maria Pititica</h1>
 
-    <div id="areaLoja" class="loja-info" style="display:none;"></div>
+        <div id="areaLoja" class="loja-info" style="display:none;"></div>
 
-    <div id="carregando" class="carregamento">
-        <div class="spinner" style="border-top-color: #856404; border-color: rgba(133,100,4,0.25);"></div>
-        <strong>Carregando produtos da API...</strong>
-    </div>
-
-    <div id="erro" style="display:none;"></div>
-
-    <div class="filters" id="filtros" style="display:none;">
-        <div class="filter-group">
-            <label for="filtroProduto">🔍 Nome do produto</label>
-            <input type="text" id="filtroProduto" placeholder="Ex: Laço, Vestido...">
+        <div id="carregando" class="carregamento">
+            <div class="spinner" style="border-top-color: #856404; border-color: rgba(133,100,4,0.25);"></div>
+            <strong>Carregando produtos da API...</strong>
         </div>
-        <div class="filter-group">
-            <label for="filtroVariacao">🎨 Variação</label>
-            <input type="text" id="filtroVariacao" placeholder="Ex: Rosa, 4 anos...">
-        </div>
-        <div class="filter-group">
-            <label for="filtroCategoria">📂 Categoria</label>
-            <input type="text" id="filtroCategoria" placeholder="Ex: Meninas...">
-        </div>
-        <div style="display:flex; gap:10px; align-items:end;">
-            <div class="filter-check">
-                <input type="checkbox" id="filtroApenasEstoque" disabled>
-                <label for="filtroApenasEstoque">Apenas com estoque</label>
+
+        <div id="erro" style="display:none;"></div>
+
+        <div class="filters" id="filtros" style="display:none;">
+            <div class="filter-group">
+                <label for="filtroProduto">🔍 Nome do produto</label>
+                <input type="text" id="filtroProduto" placeholder="Ex: Laço, Vestido...">
             </div>
-            <button class="btn-limpar" id="btnLimpar">Limpar</button>
+            <div class="filter-group">
+                <label for="filtroVariacao">🎨 Variação</label>
+                <input type="text" id="filtroVariacao" placeholder="Ex: Rosa, 4 anos...">
+            </div>
+            <div class="filter-group">
+                <label for="filtroCategoria">📂 Categoria</label>
+                <input type="text" id="filtroCategoria" placeholder="Ex: Meninas...">
+            </div>
+            <div style="display:flex; gap:10px; align-items:end;">
+                <div class="filter-check">
+                    <input type="checkbox" id="filtroApenasEstoque" disabled>
+                    <label for="filtroApenasEstoque">Apenas com estoque</label>
+                </div>
+                <button class="btn-limpar" id="btnLimpar">Limpar</button>
+            </div>
+        </div>
+
+        <div class="stats" id="stats" style="display:none;"></div>
+
+        <table id="tabela" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Produto</th>
+                    <th>Variação</th>
+                    <th class="text-center">Preço Var.</th>
+                    <th class="text-center">Preço Produto</th>
+                    <th class="text-center">Estoque Variação</th>
+                </tr>
+            </thead>
+            <tbody id="corpoTabela"></tbody>
+        </table>
+
+        <div class="empty-state" id="empty">
+            ⏳ Aguardando carregamento dos produtos...
         </div>
     </div>
 
-    <div class="stats" id="stats" style="display:none;"></div>
+    <script>
+        // Sempre aponta para o proxy local gerado pelo Node.js
+        const ENDPOINT = '/api/produtos';
 
-    <table id="tabela" style="display:none;">
-        <thead>
-            <tr>
-                <th>Produto</th>
-                <th>Variação</th>
-                <th class="text-center">Preço Var.</th>
-                <th class="text-center">Preço Produto</th>
-                <th class="text-center">Estoque Produto</th>
-            </tr>
-        </thead>
-        <tbody id="corpoTabela"></tbody>
-    </table>
+        let dados = [];
+        let lojaInfo = null;
 
-    <div class="empty-state" id="empty">
-        ⏳ Aguardando carregamento dos produtos...
-    </div>
-</div>
+        const areaLoja = document.getElementById('areaLoja');
+        const carregando = document.getElementById('carregando');
+        const erroDiv = document.getElementById('erro');
+        const filtrosDiv = document.getElementById('filtros');
+        const statsDiv = document.getElementById('stats');
+        const tabela = document.getElementById('tabela');
+        const corpoTabela = document.getElementById('corpoTabela');
+        const empty = document.getElementById('empty');
+        const filtroProduto = document.getElementById('filtroProduto');
+        const filtroVariacao = document.getElementById('filtroVariacao');
+        const filtroCategoria = document.getElementById('filtroCategoria');
+        const filtroApenasEstoque = document.getElementById('filtroApenasEstoque');
+        const btnLimpar = document.getElementById('btnLimpar');
 
-<script>
-    // Sempre aponta para o proxy local gerado pelo Node.js
-    const ENDPOINT = '/api/produtos';
+        filtroProduto.addEventListener('input', aplicarFiltros);
+        filtroVariacao.addEventListener('input', aplicarFiltros);
+        filtroCategoria.addEventListener('input', aplicarFiltros);
+        filtroApenasEstoque.addEventListener('change', aplicarFiltros);
+        btnLimpar.addEventListener('click', limparFiltros);
 
-    let dados = [];
-    let lojaInfo = null;
-
-    const areaLoja = document.getElementById('areaLoja');
-    const carregando = document.getElementById('carregando');
-    const erroDiv = document.getElementById('erro');
-    const filtrosDiv = document.getElementById('filtros');
-    const statsDiv = document.getElementById('stats');
-    const tabela = document.getElementById('tabela');
-    const corpoTabela = document.getElementById('corpoTabela');
-    const empty = document.getElementById('empty');
-    const filtroProduto = document.getElementById('filtroProduto');
-    const filtroVariacao = document.getElementById('filtroVariacao');
-    const filtroCategoria = document.getElementById('filtroCategoria');
-    const filtroApenasEstoque = document.getElementById('filtroApenasEstoque');
-    const btnLimpar = document.getElementById('btnLimpar');
-
-    filtroProduto.addEventListener('input', aplicarFiltros);
-    filtroVariacao.addEventListener('input', aplicarFiltros);
-    filtroCategoria.addEventListener('input', aplicarFiltros);
-    filtroApenasEstoque.addEventListener('change', aplicarFiltros);
-    btnLimpar.addEventListener('click', limparFiltros);
-
-    function formatarPreco(v) {
-        if (v == null) return '—';
-        return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
-    }
-
-    function extrairCategorias(arr) {
-        const lista = [];
-        for (const c of (arr || [])) {
-            if (c.nome) lista.push(c.nome.trim());
-            if (c.subcategorias) lista.push(...extrairCategorias(c.subcategorias));
+        function formatarPreco(v) {
+            if (v == null) return '—';
+            return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
         }
-        return lista;
-    }
 
-    function classeEstoque(qtd, controla) {
-        if (!controla) return '';
-        if (qtd <= 0) return 'estoque-zero';
-        if (qtd <= 5) return 'estoque-baixo';
-        return 'estoque-positivo';
-    }
-
-    async function carregarAPI() {
-        carregando.style.display = 'block';
-        erroDiv.style.display = 'none';
-        filtrosDiv.style.display = 'none';
-        statsDiv.style.display = 'none';
-        tabela.style.display = 'none';
-        empty.style.display = 'none';
-        areaLoja.style.display = 'none';
-        dados = [];
-
-        try {
-            const resp = await fetch(ENDPOINT, { method: 'GET', cache: 'no-store' });
-            if (!resp.ok) throw new Error(`HTTP ${resp.status} - ${resp.statusText}`);
-            const json = await resp.json();
-
-            if (!json.produtos || !Array.isArray(json.produtos)) {
-                throw new Error('Resposta inválida da API.');
+        function extrairCategorias(arr) {
+            const lista = [];
+            for (const c of (arr || [])) {
+                if (c.nome) lista.push(c.nome.trim());
+                if (c.subcategorias) lista.push(...extrairCategorias(c.subcategorias));
             }
+            return lista;
+        }
 
-            lojaInfo = json.loja || null;
+        function classeEstoque(qtd, controla) {
+            if (!controla) return '';
+            if (qtd <= 0) return 'estoque-zero';
+            if (qtd <= 5) return 'estoque-baixo';
+            return 'estoque-positivo';
+        }
 
-            if (lojaInfo) {
-                areaLoja.style.display = 'flex';
-                areaLoja.innerHTML = `
-                    <div>
-                        <h2>🏪 ${escapeHtml(lojaInfo.nome || '')}</h2>
-                        ${lojaInfo.url ? `<small><a href="${lojaInfo.url}" target="_blank">${lojaInfo.url}</a></small>` : ''}
-                    </div>
-                    <div>
-                        <button class="btn-recarregar" onclick="carregarAPI()">🔄 Atualizar dados</button>
-                    </div>
-                `;
-            }
+        async function carregarAPI() {
+            carregando.style.display = 'block';
+            erroDiv.style.display = 'none';
+            filtrosDiv.style.display = 'none';
+            statsDiv.style.display = 'none';
+            tabela.style.display = 'none';
+            empty.style.display = 'none';
+            areaLoja.style.display = 'none';
+            dados = [];
 
-            for (const prod of json.produtos) {
-                const categoriasLista = extrairCategorias(prod.categorias);
-                const categoriaStr = categoriasLista.join(' • ');
-                const controla = !!prod.controlar_estoque;
-                const estoqueTotal = controla ? (Number(prod.estoque) || 0) : null;
-                const imagemPrincipal = (prod.imagens && prod.imagens[0]) || '';
+            try {
+                const resp = await fetch(ENDPOINT, { method: 'GET', cache: 'no-store' });
+                if (!resp.ok) throw new Error(`HTTP ${resp.status} - ${resp.statusText}`);
+                const json = await resp.json();
 
-                if (prod.variacoes && prod.variacoes.length > 0) {
-                    for (const v of prod.variacoes) {
+                if (!json.produtos || !Array.isArray(json.produtos)) {
+                    throw new Error('Resposta inválida da API.');
+                }
+
+                lojaInfo = json.loja || null;
+
+                if (lojaInfo) {
+                    areaLoja.style.display = 'flex';
+                    areaLoja.innerHTML = `
+                        <div>
+                            <h2>🏪 ${escapeHtml(lojaInfo.nome || '')}</h2>
+                            ${lojaInfo.url ? `<small><a href="${lojaInfo.url}" target="_blank">${lojaInfo.url}</a></small>` : ''}
+                        </div>
+                        <div>
+                            <button class="btn-recarregar" onclick="carregarAPI()">🔄 Atualizar dados</button>
+                        </div>
+                    `;
+                }
+
+                for (const prod of json.produtos) {
+                    const categoriasLista = extrairCategorias(prod.categorias);
+                    const categoriaStr = categoriasLista.join(' • ');
+                    const controla = !!prod.controlar_estoque;
+                    const estoqueTotal = controla ? (Number(prod.estoque) || 0) : null;
+                    const imagemPrincipal = (prod.imagens && prod.imagens[0]) || '';
+
+                    if (prod.variacoes && prod.variacoes.length > 0) {
+                        for (const v of prod.variacoes) {
+                            const estVariacao = controla ? (Number(v.estoque) || 0) : null;
+                            dados.push({
+                                produto: {
+                                    id: prod.id,
+                                    nome: prod.nome,
+                                    link: prod.link,
+                                    imagem: imagemPrincipal,
+                                    categoria: categoriaStr,
+                                    preco: prod.preco,
+                                    estoque: estoqueTotal,
+                                    controlaEstoque: controla
+                                },
+                                variacao: { id: v.id, nome: v.nome, preco: v.preco, estoque: estVariacao }
+                            });
+                        }
+                    } else {
                         dados.push({
                             produto: {
                                 id: prod.id,
@@ -386,123 +402,107 @@
                                 estoque: estoqueTotal,
                                 controlaEstoque: controla
                             },
-                            variacao: { id: v.id, nome: v.nome, preco: v.preco }
+                            variacao: { id: null, nome: '(sem variações)', preco: null, estoque: estoqueTotal }
                         });
                     }
-                } else {
-                    dados.push({
-                        produto: {
-                            id: prod.id,
-                            nome: prod.nome,
-                            link: prod.link,
-                            imagem: imagemPrincipal,
-                            categoria: categoriaStr,
-                            preco: prod.preco,
-                            estoque: estoqueTotal,
-                            controlaEstoque: controla
-                        },
-                        variacao: { id: null, nome: '(sem variações)', preco: null }
-                    });
+                }
+
+                carregando.style.display = 'none';
+                filtrosDiv.style.display = 'grid';
+                statsDiv.style.display = 'flex';
+                tabela.style.display = 'table';
+                limparFiltros();
+                aplicarFiltros();
+
+            } catch (err) {
+                console.error(err);
+                carregando.style.display = 'none';
+                erroDiv.style.display = 'block';
+                erroDiv.className = 'erro';
+                erroDiv.textContent = '❌ Erro ao carregar os dados:\n' + err.message;
+                empty.style.display = 'block';
+                empty.innerHTML = '⚠️ Falha ao carregar.<br><br><button class="btn-limpar" onclick="carregarAPI()">🔄 Tentar novamente</button>';
+            }
+        }
+
+        function aplicarFiltros() {
+            const p = filtroProduto.value.trim().toLowerCase();
+            const v = filtroVariacao.value.trim().toLowerCase();
+            const c = filtroCategoria.value.trim().toLowerCase();
+            const apenasEstoque = filtroApenasEstoque.checked;
+
+            const filtrados = dados.filter(item => {
+                if (p && !item.produto.nome.toLowerCase().includes(p)) return false;
+                if (v && !item.variacao.nome.toLowerCase().includes(v)) return false;
+                if (c && !item.produto.categoria.toLowerCase().includes(c)) return false;
+                if (apenasEstoque) {
+                    if (!item.produto.controlaEstoque) return false;
+                    if ((item.variacao.estoque ?? item.produto.estoque) <= 0) return false;
+                }
+                return true;
+            });
+
+            let numProdutosUnicos = new Set(filtrados.map(i => i.produto.id)).size;
+            let totalEstoqueFiltro = 0;
+            for (const i of filtrados) {
+                if (i.produto.controlaEstoque) {
+                    totalEstoqueFiltro += (i.variacao.estoque ?? i.produto.estoque);
                 }
             }
 
-            carregando.style.display = 'none';
-            filtrosDiv.style.display = 'grid';
-            statsDiv.style.display = 'flex';
-            tabela.style.display = 'table';
-            limparFiltros();
-            aplicarFiltros();
+            statsDiv.innerHTML = `
+                <div><strong>${filtrados.length}</strong> variações</div>
+                <div><strong>${numProdutosUnicos}</strong> produtos únicos</div>
+                <div>Estoque total: <strong>${totalEstoqueFiltro}</strong></div>
+            `;
 
-        } catch (err) {
-            console.error(err);
-            carregando.style.display = 'none';
-            erroDiv.style.display = 'block';
-            erroDiv.className = 'erro';
-            erroDiv.textContent = '❌ Erro ao carregar os dados:\n' + err.message;
-            empty.style.display = 'block';
-            empty.innerHTML = '⚠️ Falha ao carregar.<br><br><button class="btn-limpar" onclick="carregarAPI()">🔄 Tentar novamente</button>';
+            renderizar(filtrados);
         }
-    }
 
-    function aplicarFiltros() {
-        const p = filtroProduto.value.trim().toLowerCase();
-        const v = filtroVariacao.value.trim().toLowerCase();
-        const c = filtroCategoria.value.trim().toLowerCase();
-        const apenasEstoque = filtroApenasEstoque.checked;
-
-        const filtrados = dados.filter(item => {
-            if (p && !item.produto.nome.toLowerCase().includes(p)) return false;
-            if (v && !item.variacao.nome.toLowerCase().includes(v)) return false;
-            if (c && !item.produto.categoria.toLowerCase().includes(c)) return false;
-            if (apenasEstoque) {
-                if (!item.produto.controlaEstoque) return false;
-                if ((item.produto.estoque || 0) <= 0) return false;
+        function renderizar(lista) {
+            if (lista.length === 0) {
+                corpoTabela.innerHTML = `<tr><td colspan="5" class="empty-state">Nenhum resultado encontrado.</td></tr>`;
+                return;
             }
-            return true;
-        });
 
-        let numProdutosUnicos = new Set(filtrados.map(i => i.produto.id)).size;
-        let totalEstoqueFiltro = 0;
-        const todosPorProdId = {};
-        for (const i of filtrados) todosPorProdId[i.produto.id] = i.produto;
-        for (const id in todosPorProdId) {
-            const it = todosPorProdId[id];
-            if (it.controlaEstoque) totalEstoqueFiltro += (it.estoque || 0);
+            corpoTabela.innerHTML = lista.map(item => {
+                const controla = item.produto.controlaEstoque;
+                const est = item.variacao.estoque ?? item.produto.estoque;
+                const cls = classeEstoque(est, controla);
+                const estoqueLabel = controla ? `<span class="${cls}">${est}</span>` : `<span class="badge-sem-controle">Sem controle</span>`;
+
+                return `
+                <tr>
+                    <td>
+                        ${item.produto.imagem ? `<img class="prod-img" src="${item.produto.imagem}" alt="" onerror="this.style.display='none'">` : ''}
+                        <div class="prod-name">
+                            <a href="${item.produto.link}" target="_blank">${escapeHtml(item.produto.nome)}</a>
+                            <small>${escapeHtml(item.produto.categoria) || 'Sem categoria'}${item.produto.id ? ' • ID: ' + item.produto.id : ''}</small>
+                        </div>
+                    </td>
+                    <td><span class="variacao-nome">${escapeHtml(item.variacao.nome) || '—'}</span></td>
+                    <td class="text-center preco">${item.variacao.preco != null ? formatarPreco(item.variacao.preco) : '—'}</td>
+                    <td class="text-center preco">${formatarPreco(item.produto.preco)}</td>
+                    <td class="text-center">${estoqueLabel}</td>
+                </tr>
+            `}).join('');
         }
 
-        statsDiv.innerHTML = `
-            <div><strong>${filtrados.length}</strong> variações</div>
-            <div><strong>${numProdutosUnicos}</strong> produtos únicos</div>
-            <div>Estoque total: <strong>${totalEstoqueFiltro}</strong></div>
-        `;
-
-        renderizar(filtrados);
-    }
-
-    function renderizar(lista) {
-        if (lista.length === 0) {
-            corpoTabela.innerHTML = `<tr><td colspan="5" class="empty-state">Nenhum resultado encontrado.</td></tr>`;
-            return;
+        function limparFiltros() {
+            filtroProduto.value = '';
+            filtroVariacao.value = '';
+            filtroCategoria.value = '';
+            filtroApenasEstoque.checked = true;
         }
 
-        corpoTabela.innerHTML = lista.map(item => {
-            const controla = item.produto.controlaEstoque;
-            const est = item.produto.estoque;
-            const cls = classeEstoque(est, controla);
-            const estoqueLabel = controla ? `<span class="${cls}">${est}</span>` : `<span class="badge-sem-controle">Sem controle</span>`;
+        function escapeHtml(str) {
+            if (str == null) return '';
+            const div = document.createElement('div');
+            div.textContent = String(str);
+            return div.innerHTML;
+        }
 
-            return `
-            <tr>
-                <td>
-                    ${item.produto.imagem ? `<img class="prod-img" src="${item.produto.imagem}" alt="" onerror="this.style.display='none'">` : ''}
-                    <div class="prod-name">
-                        <a href="${item.produto.link}" target="_blank">${escapeHtml(item.produto.nome)}</a>
-                        <small>${escapeHtml(item.produto.categoria) || 'Sem categoria'}${item.produto.id ? ' • ID: ' + item.produto.id : ''}</small>
-                    </div>
-                </td>
-                <td><span class="variacao-nome">${escapeHtml(item.variacao.nome) || '—'}</span></td>
-                <td class="text-center preco">${item.variacao.preco != null ? formatarPreco(item.variacao.preco) : '—'}</td>
-                <td class="text-center preco">${formatarPreco(item.produto.preco)}</td>
-                <td class="text-center">${estoqueLabel}</td>
-            </tr>
-        `}).join('');
-    }
-
-    function limparFiltros() {
-        filtroProduto.value = '';
-        filtroVariacao.value = '';
-        filtroCategoria.value = '';
-        filtroApenasEstoque.checked = true;
-    }
-
-    function escapeHtml(str) {
-        if (str == null) return '';
-        const div = document.createElement('div');
-        div.textContent = String(str);
-        return div.innerHTML;
-    }
-
-    carregarAPI();
-</script>
+        carregarAPI();
+    </script>
 </body>
 </html>
