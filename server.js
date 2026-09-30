@@ -55,7 +55,7 @@ function proxyAPI(res) {
 
 const servidor = http.createServer((req, res) => {
     let url = decodeURIComponent(req.url.split('?')[0]);
-    if (url === '/') url = '/visualizar_estoque_api.html';
+    if (url === '/') url = '/index.html';
 
     if (url === '/api/produtos') {
         return proxyAPI(res);
