@@ -257,7 +257,7 @@
         </div>
         <div style="display:flex; gap:10px; align-items:end;">
             <div class="filter-check">
-                <input type="checkbox" id="filtroApenasEstoque">
+                <input type="checkbox" id="filtroApenasEstoque" disabled>
                 <label for="filtroApenasEstoque">Apenas com estoque</label>
             </div>
             <button class="btn-limpar" id="btnLimpar">Limpar</button>
@@ -492,7 +492,7 @@
         filtroProduto.value = '';
         filtroVariacao.value = '';
         filtroCategoria.value = '';
-        filtroApenasEstoque.checked = false;
+        filtroApenasEstoque.checked = true;
     }
 
     function escapeHtml(str) {
