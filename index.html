@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <title>Visualizador de Estoque - API</title>
+    <title>Visualizador de Estoque</title>
     <style>
         * { box-sizing: border-box; }
         body {
@@ -88,13 +88,16 @@
             font-size: 14px;
             color: #444;
         }
-        .filter-group input[type="text"] {
+        .filter-group input[type="text"],
+        .filter-group select {
             padding: 9px 12px;
             border: 1px solid #ccc;
             border-radius: 4px;
             font-size: 14px;
+            background: white;
         }
-        .filter-group input[type="text"]:focus {
+        .filter-group input[type="text"]:focus,
+        .filter-group select:focus {
             outline: none;
             border-color: #009879;
         }
@@ -215,6 +218,28 @@
             color: #444;
         }
         .btn-limpar:hover { background: #bdbdbd; }
+        .paginacao {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #444;
+        }
+        .paginacao button {
+            padding: 9px 18px;
+            background: #009879;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .paginacao button:hover:not(:disabled) { background: #007a63; }
+        .paginacao button:disabled { background: #ccc; cursor: not-allowed; }
         .spinner {
             display: inline-block;
             width: 16px;
@@ -231,7 +256,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>📦 Visualizador de Estoque - API Maria Pititica</h1>
+        <h1>📦 Visualizador de Estoque - Maria Pititica</h1>
 
         <div id="areaLoja" class="loja-info" style="display:none;"></div>
 
@@ -253,11 +278,13 @@
             </div>
             <div class="filter-group">
                 <label for="filtroCategoria">📂 Categoria</label>
-                <input type="text" id="filtroCategoria" placeholder="Ex: Meninas...">
+                <select id="filtroCategoria">
+                    <option value="">Todas as categorias</option>
+                </select>
             </div>
             <div style="display:flex; gap:10px; align-items:end;">
                 <div class="filter-check">
-                    <input type="checkbox" id="filtroApenasEstoque" disabled>
+                    <input type="checkbox" id="filtroApenasEstoque">
                     <label for="filtroApenasEstoque">Apenas com estoque</label>
                 </div>
                 <button class="btn-limpar" id="btnLimpar">Limpar</button>
@@ -271,13 +298,14 @@
                 <tr>
                     <th>Produto</th>
                     <th>Variação</th>
-                    <th class="text-center">Preço Var.</th>
-                    <th class="text-center">Preço Produto</th>
-                    <th class="text-center">Estoque Variação</th>
+                    <th class="text-center">Preço</th>
+                    <th class="text-center">Estoque</th>
                 </tr>
             </thead>
             <tbody id="corpoTabela"></tbody>
         </table>
+
+        <div class="paginacao" id="paginacao" style="display:none;"></div>
 
         <div class="empty-state" id="empty">
             ⏳ Aguardando carregamento dos produtos...
@@ -290,6 +318,12 @@
 
         let dados = [];
         let lojaInfo = null;
+        let numero = '';
+        let urlProduto = '';
+        let categorias = [];
+        let listaFiltrada = [];
+        let paginaAtual = 1;
+        const ITENS_POR_PAGINA = 50;
 
         const areaLoja = document.getElementById('areaLoja');
         const carregando = document.getElementById('carregando');
@@ -299,6 +333,7 @@
         const tabela = document.getElementById('tabela');
         const corpoTabela = document.getElementById('corpoTabela');
         const empty = document.getElementById('empty');
+        const paginacao = document.getElementById('paginacao');
         const filtroProduto = document.getElementById('filtroProduto');
         const filtroVariacao = document.getElementById('filtroVariacao');
         const filtroCategoria = document.getElementById('filtroCategoria');
@@ -307,22 +342,13 @@
 
         filtroProduto.addEventListener('input', aplicarFiltros);
         filtroVariacao.addEventListener('input', aplicarFiltros);
-        filtroCategoria.addEventListener('input', aplicarFiltros);
+        filtroCategoria.addEventListener('change', aplicarFiltros);
         filtroApenasEstoque.addEventListener('change', aplicarFiltros);
         btnLimpar.addEventListener('click', limparFiltros);
 
         function formatarPreco(v) {
             if (v == null) return '—';
             return 'R$ ' + Number(v).toFixed(2).replace('.', ',');
-        }
-
-        function extrairCategorias(arr) {
-            const lista = [];
-            for (const c of (arr || [])) {
-                if (c.nome) lista.push(c.nome.trim());
-                if (c.subcategorias) lista.push(...extrairCategorias(c.subcategorias));
-            }
-            return lista;
         }
 
         function classeEstoque(qtd, controla) {
@@ -338,6 +364,7 @@
             filtrosDiv.style.display = 'none';
             statsDiv.style.display = 'none';
             tabela.style.display = 'none';
+            paginacao.style.display = 'none';
             empty.style.display = 'none';
             areaLoja.style.display = 'none';
             dados = [];
@@ -347,67 +374,80 @@
                 if (!resp.ok) throw new Error(`HTTP ${resp.status} - ${resp.statusText}`);
                 const json = await resp.json();
 
-                if (!json.produtos || !Array.isArray(json.produtos)) {
+                if (!json.data || !Array.isArray(json.data)) {
                     throw new Error('Resposta inválida da API.');
                 }
 
                 lojaInfo = json.loja || null;
 
-                if (lojaInfo) {
-                    areaLoja.style.display = 'flex';
-                    areaLoja.innerHTML = `
-                        <div>
-                            <h2>🏪 ${escapeHtml(lojaInfo.nome || '')}</h2>
-                            ${lojaInfo.url ? `<small><a href="${lojaInfo.url}" target="_blank">${lojaInfo.url}</a></small>` : ''}
-                        </div>
-                        <div>
-                            <button class="btn-recarregar" onclick="carregarAPI()">🔄 Atualizar dados</button>
-                        </div>
-                    `;
+                try {
+                    const cfg = await fetch('/api/config', { cache: 'no-store' }).then(r => r.json());
+                    urlProduto = cfg.url_produto || '';
+                    categorias = cfg.categorias || [];
+                    preencherCategorias();
+                } catch (e) {
+                    urlProduto = '';
+                    categorias = [];
                 }
 
-                for (const prod of json.produtos) {
-                    const categoriasLista = extrairCategorias(prod.categorias);
-                    const categoriaStr = categoriasLista.join(' • ');
-                    const controla = !!prod.controlar_estoque;
-                    const estoqueTotal = controla ? (Number(prod.estoque) || 0) : null;
-                    const imagemPrincipal = (prod.imagens && prod.imagens[0]) || '';
+                areaLoja.style.display = 'flex';
+                areaLoja.innerHTML = `
+                    <div>
+                        <h2>🏪 ${escapeHtml((lojaInfo && lojaInfo.nome) || 'Catálogo de Produtos')}</h2>
+                        ${lojaInfo && lojaInfo.url
+                            ? `<small><a href="${lojaInfo.url}" target="_blank">${lojaInfo.url}</a></small>`
+                            : `<small>${json.data.length} produtos carregados</small>`}
+                    </div>
+                    <div>
+                        <button class="btn-recarregar" onclick="carregarAPI()">🔄 Atualizar dados</button>
+                    </div>
+                `;
+
+                for (const prod of json.data) {
+                    const categoriaStr = (prod.categorias || [])
+                        .filter(c => c && c !== 0)
+                        .map(c => {
+                            const cat = categorias.find(x => Number(x.id) === Number(c));
+                            return cat ? cat.nome : String(c);
+                        })
+                        .join(' • ');
+                    const controla = !!(prod.estoque && prod.estoque.controlar_estoque);
+                    const precoProduto = (prod.catalogos && prod.catalogos[0] && prod.catalogos[0].precos)
+                        ? prod.catalogos[0].precos.preco : null;
+                    const imagemPrincipal = (prod.imagens && prod.imagens[0] && prod.imagens[0].url) || '';
+                    const estoqueProduto = (controla && prod.estoque && prod.estoque.estoque != null)
+                        ? (Number(prod.estoque.estoque) || 0) : null;
+
+                    const base = {
+                        id: prod.id,
+                        nome: prod.nome,
+                        link: `${urlProduto}/${prod.id}`,
+                        imagem: imagemPrincipal,
+                        categoria: categoriaStr,
+                        preco: precoProduto,
+                        estoque: estoqueProduto,
+                        controlaEstoque: controla
+                    };
 
                     if (prod.variacoes && prod.variacoes.length > 0) {
                         for (const v of prod.variacoes) {
-                            const estVariacao = controla ? (Number(v.estoque) || 0) : null;
+                            const estVariacao = (controla && v.estoque && v.estoque.estoque != null)
+                                ? (Number(v.estoque.estoque) || 0) : null;
                             dados.push({
-                                produto: {
-                                    id: prod.id,
-                                    nome: prod.nome,
-                                    link: prod.link,
-                                    imagem: imagemPrincipal,
-                                    categoria: categoriaStr,
-                                    preco: prod.preco,
-                                    estoque: estoqueTotal,
-                                    controlaEstoque: controla
-                                },
-                                variacao: { id: v.id, nome: v.nome, preco: v.preco, estoque: estVariacao }
+                                produto: base,
+                                variacao: { id: v.id, nome: v.nome, preco: v.preco != null ? v.preco : null, estoque: estVariacao }
                             });
                         }
                     } else {
                         dados.push({
-                            produto: {
-                                id: prod.id,
-                                nome: prod.nome,
-                                link: prod.link,
-                                imagem: imagemPrincipal,
-                                categoria: categoriaStr,
-                                preco: prod.preco,
-                                estoque: estoqueTotal,
-                                controlaEstoque: controla
-                            },
-                            variacao: { id: null, nome: '(sem variações)', preco: null, estoque: estoqueTotal }
+                            produto: base,
+                            variacao: { id: null, nome: '(sem variações)', preco: null, estoque: estoqueProduto }
                         });
                     }
                 }
 
                 carregando.style.display = 'none';
+                erroDiv.style.display = 'none';
                 filtrosDiv.style.display = 'grid';
                 statsDiv.style.display = 'flex';
                 tabela.style.display = 'table';
@@ -420,6 +460,7 @@
                 erroDiv.style.display = 'block';
                 erroDiv.className = 'erro';
                 erroDiv.textContent = '❌ Erro ao carregar os dados:\n' + err.message;
+                paginacao.style.display = 'none';
                 empty.style.display = 'block';
                 empty.innerHTML = '⚠️ Falha ao carregar.<br><br><button class="btn-limpar" onclick="carregarAPI()">🔄 Tentar novamente</button>';
             }
@@ -456,20 +497,39 @@
                 <div>Estoque total: <strong>${totalEstoqueFiltro}</strong></div>
             `;
 
+            paginaAtual = 1;
             renderizar(filtrados);
         }
 
+        function irParaPagina(novaPagina) {
+            paginaAtual = novaPagina;
+            renderizar(listaFiltrada);
+            tabela.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         function renderizar(lista) {
+            listaFiltrada = lista;
+
             if (lista.length === 0) {
-                corpoTabela.innerHTML = `<tr><td colspan="5" class="empty-state">Nenhum resultado encontrado.</td></tr>`;
+                corpoTabela.innerHTML = `<tr><td colspan="4" class="empty-state">Nenhum resultado encontrado.</td></tr>`;
+                paginacao.style.display = 'none';
                 return;
             }
 
-            corpoTabela.innerHTML = lista.map(item => {
+            const totalPaginas = Math.max(1, Math.ceil(lista.length / ITENS_POR_PAGINA));
+            if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
+            if (paginaAtual < 1) paginaAtual = 1;
+
+            const inicio = (paginaAtual - 1) * ITENS_POR_PAGINA;
+            const pagina = lista.slice(inicio, inicio + ITENS_POR_PAGINA);
+
+            corpoTabela.innerHTML = pagina.map(item => {
                 const controla = item.produto.controlaEstoque;
-                const est = item.variacao.estoque ?? item.produto.estoque;
+                const estoqueVemDaVariacao = (item.variacao.estoque != null);
+                const est = estoqueVemDaVariacao ? item.variacao.estoque : item.produto.estoque;
                 const cls = classeEstoque(est, controla);
-                const estoqueLabel = controla ? `<span class="${cls}">${est}</span>` : `<span class="badge-sem-controle">Sem controle</span>`;
+                const badgeOrigem = controla && !estoqueVemDaVariacao ? ' <small style="color:#999;">(total)</small>' : '';
+                const estoqueLabel = controla ? `<span class="${cls}">${est}${badgeOrigem}</span>` : `<span class="badge-sem-controle">Sem controle</span>`;
 
                 return `
                 <tr>
@@ -481,18 +541,31 @@
                         </div>
                     </td>
                     <td><span class="variacao-nome">${escapeHtml(item.variacao.nome) || '—'}</span></td>
-                    <td class="text-center preco">${item.variacao.preco != null ? formatarPreco(item.variacao.preco) : '—'}</td>
-                    <td class="text-center preco">${formatarPreco(item.produto.preco)}</td>
+                    <td class="text-center preco">${formatarPreco(item.variacao.preco != null ? item.variacao.preco : item.produto.preco)}</td>
                     <td class="text-center">${estoqueLabel}</td>
                 </tr>
             `}).join('');
+
+            paginacao.style.display = 'flex';
+            paginacao.innerHTML = `
+                <div>Página <strong>${paginaAtual}</strong> de <strong>${totalPaginas}</strong> • exibindo ${inicio + 1}-${inicio + pagina.length} de ${lista.length} variações</div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="irParaPagina(${paginaAtual - 1})" ${paginaAtual === 1 ? 'disabled' : ''}>← Anterior</button>
+                    <button onclick="irParaPagina(${paginaAtual + 1})" ${paginaAtual === totalPaginas ? 'disabled' : ''}>Próxima →</button>
+                </div>
+            `;
         }
 
         function limparFiltros() {
             filtroProduto.value = '';
             filtroVariacao.value = '';
             filtroCategoria.value = '';
-            filtroApenasEstoque.checked = true;
+            filtroApenasEstoque.checked = false;
+        }
+
+        function preencherCategorias() {
+            filtroCategoria.innerHTML = '<option value="">Todas as categorias</option>' +
+                categorias.map(c => `<option value="${escapeHtml(c.nome)}">${escapeHtml(c.nome)}</option>`).join('');
         }
 
         function escapeHtml(str) {
